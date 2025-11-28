@@ -1,4 +1,3 @@
-import blf
 import bpy
 import gpu
 from bl_ui.space_toolsystem_common import ToolSelectPanelHelper
@@ -8,7 +7,7 @@ from mathutils import Vector
 from mathutils.geometry import intersect_point_line
 
 from .utils import line_factor_point, scale_to_matrix
-import bmesh
+
 DIRECTION_ITEMS = [
     "RIGHT",
     "BOTTOM",
@@ -76,13 +75,13 @@ class TextureSpaceGizmo(bpy.types.Gizmo):
         l, r, t, b = self.target_get_value("texture_space_control_offset")
         if of := {
             "RIGHT": (r, 0, 0),
-            "BOTTOM": (0, b, 0),
+            "BOTTOM": (0, 0, b),
             "LEFT": (l, 0, 0),
-            "TOP": (0, t, 0),
-            "LEFT_TOP": (l, t, 0),
-            "RIGHT_TOP": (r, t, 0),
-            "LEFT_BOTTOM": (l, b, 0),
-            "RIGHT_BOTTOM": (r, b, 0),
+            "TOP": (0, 0, t),
+            "LEFT_TOP": (l, 0, t),
+            "RIGHT_TOP": (r, 0, t),
+            "LEFT_BOTTOM": (l, 0, b),
+            "RIGHT_BOTTOM": (r, 0, b),
         }.get(self.direction):
             return Vector(of)
         return Vector((0, 0, 0))
@@ -148,7 +147,7 @@ class TextureSpaceGizmo(bpy.types.Gizmo):
         if self.is_vertical:
             a, b = Vector((dim, 0, 0)), Vector((-dim, 0, 0))
         else:
-            a, b = Vector((0, dim, 0)), Vector((0, -dim, 0))
+            a, b = Vector((0, 0, dim)), Vector((0, 0, -dim))
 
         mat = obj.matrix_world
         if matrix:
@@ -166,13 +165,12 @@ class TextureSpaceGizmo(bpy.types.Gizmo):
         dim = min(e, f, dim) * 0.1
 
         point = self.point(context)
-        omv = 0  # offset margin value
         ov = dim  # offset margin
         corner_offset = {
-            "LEFT_TOP": ((-omv, -ov, 0), (-omv, omv, 0), (ov, omv, 0)),
-            "RIGHT_TOP": ((-ov, omv, 0), (omv, omv, 0), (omv, -ov, 0)),
-            "LEFT_BOTTOM": ((-omv, ov, 0), (-omv, -omv, 0), (ov, -omv, 0)),
-            "RIGHT_BOTTOM": ((-ov, -omv, 0), (omv, -omv, 0), (omv, ov, 0)),
+            "LEFT_TOP": ((0, 0, -ov), (0, 0, 0), (ov, 0, 0)),
+            "RIGHT_TOP": ((0, 0, -ov), (0, 0, 0), (-ov,0,  0)),
+            "LEFT_BOTTOM": ((0, 0, ov), (0, 0, 0), (ov, 0, 0)),
+            "RIGHT_BOTTOM": ((0, 0, ov), (0, 0, 0), (-ov,0,  0)),
         }
         points = corner_offset.get(self.direction)
         return list(obj.matrix_world @ (Vector(i) + point) for i in points)
