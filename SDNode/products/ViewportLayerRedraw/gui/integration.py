@@ -818,6 +818,9 @@ class ViewportGui(bpy.types.Operator):
                 wrapper = NodeTreeWrapper()
                 wrapper.load(obj, filter=lambda n: n.get("title", "").startswith("#"))
                 for node in wrapper.nodes.values():
+                    for widget in node.widgets.values():
+                        widget.col_bg = Const.WINDOW_BG
+                        widget.col_widget = Const.FRAME_BG
                     node.display(wrapper, self.app_hud)
             # 底部按钮
             if True:
@@ -990,17 +993,22 @@ class ViewportGui(bpy.types.Operator):
             imgui.push_style_color(imgui.Col.HEADER_HOVERED, Const.BUTTON_HOVERED)
             flags = 0
             flags |= imgui.ChildFlags.FRAME_STYLE
-            flags |= imgui.ChildFlags.AUTO_RESIZE_Y
-            flags |= imgui.ChildFlags.ALWAYS_AUTO_RESIZE
+            ah = imgui.get_content_region_avail()[1]
+            fh = Const.RP_R_WINDOW_P[1]
+            imgui.push_style_color(imgui.Col.FRAME_BG, (48 / 255, 48 / 255, 48 / 255, 1))
 
-            if True:
+            with with_child("Outer", (0, ah - fh), flags):
                 obj = bpy.context.object
                 mat = obj.active_material
                 wrapper = MaterialWrapper()
                 wrapper.load(mat, filter=lambda n: n.type == "GROUP")
                 for node in wrapper.node_descriptors.values():
+                    for widget in node.widgets.values():
+                        widget.col_bg = Const.WINDOW_BG
+                        widget.col_widget = Const.FRAME_BG
                     node.display(wrapper, self.app_hud)
 
+            imgui.pop_style_color()
             imgui.pop_style_var(6)
             imgui.pop_style_color(5)
 

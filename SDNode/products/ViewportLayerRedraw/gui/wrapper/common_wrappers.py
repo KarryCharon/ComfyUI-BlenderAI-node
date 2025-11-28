@@ -66,6 +66,8 @@ class WidgetDescriptor:
         self.adapter: BaseAdapter = owner.adapter
         self.widget_name = widget_name
         self.widget_def = self.adapter.get_meta(self.widget_name)
+        self.col_bg = (0.2, 0.2, 0.2, 1.0)
+        self.col_widget = (0.4, 0.4, 0.4, 1.0)
         self.flags = 0
         self.flags |= imgui.ChildFlags.FRAME_STYLE
         self.flags |= imgui.ChildFlags.AUTO_RESIZE_Y
@@ -113,19 +115,20 @@ class IntDescriptor(WidgetDescriptor):
         imgui.push_style_color(imgui.Col.TEXT, (1, 1, 1, 0.7))
         imgui.push_style_color(imgui.Col.SLIDER_GRAB, Const.SLIDER_NORMAL)
         imgui.push_style_color(imgui.Col.SLIDER_GRAB_ACTIVE, Const.SLIDER_ACTIVE)
+        imgui.push_style_color(imgui.Col.FRAME_BG, self.col_bg)
         with with_child("##Int", (0, 0), child_flags=self.flags):
             imgui.push_item_width(-1)
             vmin = max(-(2**30), int(cfg.get("min", -65535)))
             vmax = min(2**30 - 1, int(cfg.get("max", +65535)))
             imgui.push_style_var(imgui.StyleVar.FRAME_ROUNDING, Const.RP_FRAME_INNER_R)
-            imgui.push_style_color(imgui.Col.FRAME_BG, Const.FRAME_BG)
+            imgui.push_style_color(imgui.Col.FRAME_BG, self.col_widget)
             _, val = imgui.slider_int(f"##{self.widget_name}", int(self.value), vmin, vmax, f"{self.translated_widget_name} [%d]")
             self.value = val
             imgui.pop_style_var(1)
             imgui.pop_style_color(1)
             imgui.pop_item_width()
         imgui.pop_style_var(1)
-        imgui.pop_style_color(3)
+        imgui.pop_style_color(4)
 
 
 class FloatDescriptor(WidgetDescriptor):
@@ -144,19 +147,22 @@ class FloatDescriptor(WidgetDescriptor):
         imgui.push_style_color(imgui.Col.TEXT, (1, 1, 1, 0.7))
         imgui.push_style_color(imgui.Col.SLIDER_GRAB, Const.SLIDER_NORMAL)
         imgui.push_style_color(imgui.Col.SLIDER_GRAB_ACTIVE, Const.SLIDER_ACTIVE)
+        imgui.push_style_color(imgui.Col.FRAME_BG, self.col_bg)
         with with_child("##Float", (0, 0), child_flags=self.flags):
             imgui.push_item_width(-1)
             imgui.push_style_var(imgui.StyleVar.FRAME_ROUNDING, Const.RP_FRAME_INNER_R)
-            imgui.push_style_color(imgui.Col.FRAME_BG, Const.FRAME_BG)
+            imgui.push_style_color(imgui.Col.FRAME_BG, self.col_widget)
             vmin = cfg.get("min", 0.0)
+            vmin = max(vmin, -imgui.FLT_MIN * 0.5)
             vmax = cfg.get("max", 1.0)
+            vmax = min(vmax, imgui.FLT_MAX * 0.5)
             _, val = imgui.slider_float(f"##{self.widget_name}", self.value, vmin, vmax, f"{self.translated_widget_name} [%.2f]")
             self.value = val
             imgui.pop_style_color(1)
             imgui.pop_style_var(1)
             imgui.pop_item_width()
         imgui.pop_style_var(1)
-        imgui.pop_style_color(3)
+        imgui.pop_style_color(4)
 
 
 class BoolDescriptor(WidgetDescriptor):
@@ -179,12 +185,13 @@ class EnumDescriptor(WidgetDescriptor):
             if not self.widget_def or not isinstance(self.widget_def[0], list):
                 return
             self._cached_items = self.widget_def[0]
+        imgui.push_style_color(imgui.Col.FRAME_BG, self.col_bg)
         with with_child("##Enum", (0, 0), child_flags=self.flags):
             imgui.push_item_width(-1)
             imgui.push_style_var_x(imgui.StyleVar.FRAME_PADDING, Const.RP_FRAME_P[0])
             imgui.push_style_var(imgui.StyleVar.FRAME_ROUNDING, Const.RP_FRAME_INNER_R)
             imgui.push_style_var(imgui.StyleVar.ITEM_SPACING, Const.RP_CHILD_IS)
-            imgui.push_style_color(imgui.Col.FRAME_BG, Const.FRAME_BG)
+            imgui.push_style_color(imgui.Col.FRAME_BG, self.col_widget)
             preview = f"{self.translated_widget_name}: {self._cached_items[int(self.value)]}"
             if imgui.begin_combo(f"##{self.widget_name}", preview):
                 for n, item in enumerate(self._cached_items):
@@ -197,6 +204,7 @@ class EnumDescriptor(WidgetDescriptor):
             imgui.pop_style_color()
             imgui.pop_style_var(3)
             imgui.pop_item_width()
+        imgui.pop_style_color(1)
 
 
 class ComboDescriptor(EnumDescriptor):
@@ -207,13 +215,14 @@ class StringDescriptor(WidgetDescriptor):
     ptype: PropertyType = PropertyType.STRING
 
     def display(self, wrapper, app: App):
+        imgui.push_style_color(imgui.Col.FRAME_BG, self.col_bg)
         with with_child("##String", (0, 240), child_flags=self.flags):
             imgui.text(f"{getattr(self.owner, 'display_name', '')}: {self.translated_widget_name}")
             imgui.dummy((1, 4))
             imgui.push_style_var(imgui.StyleVar.SCROLLBAR_ROUNDING, Const.CHILD_SB_R)
             imgui.push_style_var(imgui.StyleVar.SCROLLBAR_SIZE, Const.CHILD_SB_S)
             imgui.push_style_var(imgui.StyleVar.SCROLLBAR_PADDING, Const.CHILD_SB_P)
-            imgui.push_style_color(imgui.Col.FRAME_BG, Const.FRAME_BG)
+            imgui.push_style_color(imgui.Col.FRAME_BG, self.col_widget)
             imgui.push_style_color(imgui.Col.SCROLLBAR_BG, Const.CHILD_SB_BG)
             imgui.push_style_color(imgui.Col.SCROLLBAR_GRAB, Const.CHILD_SB_GRAB)
             imgui.push_style_color(imgui.Col.SCROLLBAR_GRAB_ACTIVE, Const.CHILD_SB_GRAB_ACTIVE)
@@ -226,6 +235,7 @@ class StringDescriptor(WidgetDescriptor):
             app.font_manager.pop_font()
             imgui.pop_style_var(3)
             imgui.pop_style_color(5)
+        imgui.pop_style_color(1)
 
 
 class ImageDescriptor(WidgetDescriptor):
@@ -236,9 +246,10 @@ class ImageDescriptor(WidgetDescriptor):
         imgui.image_button(f"{self.node_title}_{self.widget_name}1", icon, (w, h))
 
     def display(self, wrapper, app: App):
+        imgui.push_style_color(imgui.Col.FRAME_BG, self.col_bg)
         with with_child("##Image", (0, 0), child_flags=self.flags):
             imgui.text(f"{getattr(self.owner, 'display_name', '')}: {self.widget_name}")
-            imgui.push_style_color(imgui.Col.FRAME_BG, (56 / 255, 56 / 255, 56 / 255, 1))
+            imgui.push_style_color(imgui.Col.FRAME_BG, self.col_widget)
             with with_child("##Inner", (0, 0), child_flags=self.flags):
                 imgui.push_style_var_x(imgui.StyleVar.CELL_PADDING, 0)
                 imgui.push_id(f"##Prop_{self.node_title}_{self.widget_name}_1")
@@ -246,6 +257,7 @@ class ImageDescriptor(WidgetDescriptor):
                 imgui.pop_id()
                 imgui.pop_style_var(1)
             imgui.pop_style_color()
+        imgui.pop_style_color(1)
 
     def display_image_with_close(self):
         bw, bh = 102, 102
@@ -354,18 +366,25 @@ class ColorDescriptor(WidgetDescriptor):
         color = self.value
         if not hasattr(color, "__iter__"):
             return
+        imgui.push_style_color(imgui.Col.FRAME_BG, self.col_bg)
         with with_child(f"##{self.node_title}_{self.widget_name}", (0, 0), child_flags=self.flags):
-            imgui.push_item_width(60)
-            flags = imgui.ColorEditFlags.ALPHA_BAR
-            flags |= imgui.ColorEditFlags.PICKER_HUE_WHEEL
-            # flags |= imgui.ColorEditFlags.INPUT_RGB
-            # flags |= imgui.ColorEditFlags.DISPLAY_RGB
-            if len(color) == 3:
-                changed, new_col = imgui.color_edit3(self.translated_widget_name, color, flags)
-            else:
-                changed, new_col = imgui.color_edit4(self.translated_widget_name, color, flags)
-            if changed:
-                self.value = new_col
+            imgui.push_item_width(120)
+            imgui.push_style_color(imgui.Col.FRAME_BG, self.col_widget)
+            imgui.push_style_var(imgui.StyleVar.FRAME_PADDING, (0, 0))
+            with with_child("##Color", (0, 0), child_flags=self.flags):
+                imgui.pop_style_var()
+                flags = imgui.ColorEditFlags.ALPHA_BAR
+                flags |= imgui.ColorEditFlags.PICKER_HUE_WHEEL
+                flags |= imgui.ColorEditFlags.NO_INPUTS
+                # flags |= imgui.ColorEditFlags.INPUT_RGB
+                # flags |= imgui.ColorEditFlags.DISPLAY_RGB
+                label = f"  {self.translated_widget_name}"
+                if len(color) == 3:
+                    changed, new_col = imgui.color_edit3(label, color, flags)
+                else:
+                    changed, new_col = imgui.color_edit4(label, color, flags)
+                if changed:
+                    self.value = new_col
             # imgui.same_line()
             # import bpy
             # from mathutils import Color
@@ -378,7 +397,9 @@ class ColorDescriptor(WidgetDescriptor):
             #     except Exception as e:
             #         print(e)
             #         pass
+            imgui.pop_style_color()
             imgui.pop_item_width()
+        imgui.pop_style_color(1)
 
 
 class DescriptorFactory:
