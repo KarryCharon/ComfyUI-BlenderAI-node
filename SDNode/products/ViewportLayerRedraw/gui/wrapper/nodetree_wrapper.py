@@ -9,6 +9,8 @@ from tempfile import gettempdir
 from .common_wrappers import WidgetDescriptor, DescriptorFactory, BaseAdapter
 from .....nodes import NodeParser
 from .....tree import CFNodeTree, TREE_TYPE, NodeBase
+from ......preference import get_pref
+from ......utils import render_scene_to_png, render_scene_viewport_opengl_to_png
 from ......timer import Timer
 
 WORKFLOW_DEFAULT = {}
@@ -213,24 +215,24 @@ def node_load_image_from_canvas(node: NodeBase, prop: str, obj: bpy.types.Object
 def node_load_image_from_viewport(node: NodeBase, prop: str, obj: bpy.types.Object):
     print("加载视图图片", node[prop], obj.name)
 
+    def run_scene_viewport_render(scene: bpy.types.Scene, node: NodeBase, prop: str):
+        png_file_path = Path(gettempdir()) / f"{uuid4().hex}.png"
+        png_file_path_str = png_file_path.as_posix()
+        render_scene_viewport_opengl_to_png(scene, png_file_path_str, get_pref().view_context)
+        node[prop] = png_file_path_str
+
+    Timer.put((run_scene_viewport_render, bpy.context.scene, node, prop))
 
 def node_load_image_from_render(node: NodeBase, prop: str, obj: bpy.types.Object):
     print("渲染图片", node[prop], obj.name)
 
-    def run(node: NodeBase, prop: str, obj: bpy.types.Object):
-        old = bpy.context.scene.render.filepath
-        old_fmt = bpy.context.scene.render.image_settings.file_format
+    def run_scene_render(scene: bpy.types.Scene, node: NodeBase, prop: str):
+        png_file_path = Path(gettempdir()) / f"{uuid4().hex}.png"
+        png_file_path_str = png_file_path.as_posix()
+        render_scene_to_png(scene, png_file_path_str)
+        node[prop] = png_file_path_str
 
-        temp_file = Path(gettempdir()) / f"{uuid4().hex}.png"
-        bpy.context.scene.render.filepath = temp_file.as_posix()
-        bpy.context.scene.render.image_settings.file_format = "PNG"
-        node[prop] = temp_file.as_posix()
-        bpy.ops.render.render(write_still=True)
-
-        bpy.context.scene.render.filepath = old
-        bpy.context.scene.render.image_settings.file_format = old_fmt
-
-    Timer.put((run, node, prop, obj))
+    Timer.put((run_scene_render, node, prop, obj))
 
 
 def node_delete_image(node: NodeBase, prop: str, obj: bpy.types.Object):
