@@ -7,6 +7,7 @@ import json
 import bpy
 import addon_utils
 import site
+from contextlib import contextmanager
 from pathlib import Path
 from functools import lru_cache
 from urllib.parse import urlparse
@@ -167,6 +168,38 @@ def update_node_editor():
                 area.tag_redraw()
     except Exception:
         ...
+
+def check_scene_camera_with_exception(scene: bpy.types.Scene):
+    if scene.camera:
+        return
+    raise Exception(_T("No Camera in Scene") + " -> " + scene.name)
+
+
+@contextmanager
+def with_scene_render_output_settings(scene: bpy.types.Scene, image_path: str):
+    render = scene.render
+    old = render.filepath
+    old_fmt = render.image_settings.file_format
+
+    render.filepath = image_path
+    render.image_settings.file_format = "PNG"
+    try:
+        yield
+    finally:
+        render.filepath = old
+        render.image_settings.file_format = old_fmt
+
+
+def render_scene_viewport_opengl_to_png(scene: bpy.types.Scene, image_path: str, view_context: bool):
+    check_scene_camera_with_exception(scene)
+    with with_scene_render_output_settings(scene, image_path):
+        bpy.ops.render.opengl(write_still=True, view_context=view_context)
+
+
+def render_scene_to_png(scene: bpy.types.Scene, image_path: str):
+    check_scene_camera_with_exception(scene)
+    with with_scene_render_output_settings(scene, image_path):
+        bpy.ops.render.render(write_still=True)
 
 
 def clear_cache(d=None):
