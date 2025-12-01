@@ -26,7 +26,7 @@ from ..SDNode.manager import Task, TaskManager
 from ..timer import Timer
 from ..preference import get_pref
 from ..kclogger import logger
-from ..utils import _T, Icon, update_screen, PrevMgr, rgb2hex, hex2rgb
+from ..utils import _T, Icon, update_screen, PrevMgr, rgb2hex, hex2rgb, render_scene_to_png, render_scene_viewport_opengl_to_png
 from ..translations.translation import ComfyTranslator
 
 
@@ -2100,36 +2100,28 @@ class 输入图像(BluePrintBase):
         def render():
             if self.mode not in {"渲染", "视口"}:
                 return
-            if self.disable_render or bpy.context.scene.sdn.disable_render_all:
+            scene = bpy.context.scene
+            if self.disable_render or scene.sdn.disable_render_all:
                 return
             s.ensure_img_path(self)
-            logger.warning("%s->%s", _T('Render'), self.image)
-            old = bpy.context.scene.render.filepath
-            old_fmt = bpy.context.scene.render.image_settings.file_format
-            bpy.context.scene.render.filepath = self.image
-            bpy.context.scene.render.image_settings.file_format = "PNG"
+            filepath = self.image
+            logger.warning("%s->%s", _T('Render'), filepath)
 
             if self.mode == "视口":
-                # 场景相机可能为空
-                if not bpy.context.scene.camera:
-                    err_info = _T("No Camera in Scene") + " -> " + bpy.context.scene.name
-                    raise Exception(err_info)
-                bpy.ops.render.opengl(write_still=True, view_context=get_pref().view_context)
-                bpy.context.scene.render.filepath = old
-                bpy.context.scene.render.image_settings.file_format = old_fmt
+                render_scene_viewport_opengl_to_png(scene, filepath, get_pref().view_context)
                 return
-            if (cam := bpy.context.scene.camera) and (gpos := cam.get("SD_Mask", [])):
+            if (cam := scene.camera) and (gpos := cam.get("SD_Mask", [])):
                 try:
                     for gpo in gpos:
                         gpo.hide_render = True
                 except BaseException:
                     ...
-            current_frame = bpy.context.scene.frame_current
+            current_frame = scene.frame_current
             if self.mode == "渲染" and not self.use_current_frame:
-                bpy.context.scene.frame_set(self.input_frame)
-            if bpy.context.scene.use_nodes:
+                scene.frame_set(self.input_frame)
+            if scene.use_nodes:
                 from .utils import set_composite
-                nt = bpy.context.scene.node_tree
+                nt = scene.node_tree
 
                 with set_composite(nt) as cmp:
                     render_layer: bpy.types.CompositorNodeRLayers = nt.nodes.new("CompositorNodeRLayers")
@@ -2138,14 +2130,12 @@ class 输入图像(BluePrintBase):
                         render_layer.layer = sel_render_layer.layer
                     if out := render_layer.outputs.get(self.out_layers):
                         nt.links.new(cmp.inputs["Image"], out)
-                    bpy.ops.render.render(write_still=True)
+                    render_scene_to_png(scene, filepath)
                     nt.nodes.remove(render_layer)
             else:
-                bpy.ops.render.render(write_still=True)
+                render_scene_to_png(scene, filepath)
             if self.mode == "渲染":
-                bpy.context.scene.frame_set(current_frame)
-            bpy.context.scene.render.filepath = old
-            bpy.context.scene.render.image_settings.file_format = old_fmt
+                scene.frame_set(current_frame)
 
         @Timer.wait_run
         def r():
