@@ -232,7 +232,7 @@ def node_load_image_from_render(node: NodeBase, prop: str, obj: bpy.types.Object
         render_scene_to_png(scene, png_file_path_str)
         node[prop] = png_file_path_str
 
-    Timer.put((run_scene_render, node, prop, obj))
+    Timer.put((run_scene_render, bpy.context.scene, node, prop))
 
 
 def node_delete_image(node: NodeBase, prop: str, obj: bpy.types.Object):
