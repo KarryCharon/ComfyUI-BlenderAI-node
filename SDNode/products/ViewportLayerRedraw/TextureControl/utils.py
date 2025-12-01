@@ -187,6 +187,8 @@ def apply_mesh_offset(obj: bpy.types.Object, offset_space: Vector):
     l, r, t, b = offset_space[:]
     bm = bmesh.new()
     bm.from_mesh(obj.data)
+    if len(bm.verts) > 4:
+        return
     bm.verts.ensure_lookup_table()
     for v in bm.verts:
         of = {
@@ -197,3 +199,47 @@ def apply_mesh_offset(obj: bpy.types.Object, offset_space: Vector):
         }.get(v.index)
         v.co += of
     bm.to_mesh(obj.data)
+
+
+def apply_object_image_space_offset(obj: bpy.types.Object):
+    mesh = obj.data
+    images = get_image(obj)
+    if len(images) == 1:
+        mat, node, image = images[0]
+        iw, ih = image.size[:]
+
+        scale = scale_to_matrix(obj.matrix_world.to_scale()).inverted()
+        dx, dy, dz = scale @ obj.dimensions  # 物理尺寸
+        lx, ly, lz = mesh.texspace_location[:]
+        tsx, tsy, tsz = mesh.texspace_size[:]
+
+        sx = np.divide(tsx, np.divide(dx, 2))
+        sy = np.divide(tsy, np.divide(dy, 2))
+        sz = np.divide(tsz, np.divide(dz, 2))
+
+        ox = np.multiply(lx, np.divide(iw, dx))
+        oy = np.multiply(ly, np.divide(ih, dy))
+        oz = np.multiply(lz, np.divide(ih, dz))
+
+        ofl, ofr, oft, ofb = offset_space = obj.texture_space_control_offset[:]
+        ll = np.multiply(ofl, np.divide(iw, dx))
+        rr = np.multiply(ofr, np.divide(iw, dx))
+        tt = np.multiply(oft, np.divide(ih, dz))
+        bb = np.multiply(ofb, np.divide(ih, dz))
+        offset_space_pixel = Vector((int(ll), int(rr), int(tt), int(bb)))
+
+        image_buf = blender_image_to_image_buf_with_numpy(image)
+        image_buf = offset_scale_image(image_buf, Vector((ox, oz)), Vector((sx, sz)),
+                                       crop=offset_space_pixel)
+
+        n = image.name.split(".")[0]
+        new_image = image_buf_to_blender_image(image_buf, f"{n}_Transformed")
+        if image.filepath != "":
+            folder = os.path.dirname(image.filepath)
+            new_image.save(filepath=os.path.join(folder, f"{new_image.name}.png"))
+        node.image = new_image
+        apply_mesh_offset(obj, offset_space)
+        mesh.texspace_location = Vector((0, 0, 0))
+        obj.texture_space_control_offset = Vector((0, 0, 0, 0))
+        return True
+    return False

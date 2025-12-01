@@ -1,16 +1,9 @@
-import os
-
 import bpy
-import numpy as np
 from mathutils import Vector
 
 from ..utils import (
     get_image,
-    blender_image_to_image_buf_with_numpy,
-    scale_to_matrix,
-    image_buf_to_blender_image,
-    offset_scale_image,
-    apply_mesh_offset
+    scale_to_matrix
 )
 
 
@@ -48,7 +41,7 @@ class TextureSpaceScaleRestore(bpy.types.Operator):
     def restore_scale(cls, obj):
         scale = scale_to_matrix(obj.matrix_world.to_scale())
         dx, dy, dz = scale.inverted() @ obj.dimensions  # 物理尺寸
-        obj.data.texspace_size = Vector((dx / 2, dy / 2, 0))
+        obj.data.texspace_size = Vector((dx / 2, dy / 2, dz / 2))
 
 
 class TextureSpaceApply(bpy.types.Operator):
@@ -66,60 +59,15 @@ class TextureSpaceApply(bpy.types.Operator):
         return self.execute(context)
 
     def execute(self, context):
-        obj = context.object
-        mesh = obj.data
-        images = get_image(obj)
         print(self.bl_idname)
+        obj = context.object
+        images = get_image(obj)
         if len(images) == 1:
-            mat, node, image = images[0]
-            iw, ih = image.size[:]
-
-            scale = scale_to_matrix(obj.matrix_world.to_scale()).inverted()
-            dx, dy, dz = scale @ obj.dimensions  # 物理尺寸
-            lx, ly, lz = mesh.texspace_location[:]
-            tsx, tsy, tsz = mesh.texspace_size[:]
-
-            sx = np.divide(tsx, np.divide(dx, 2))
-            sy = np.divide(tsy, np.divide(dy, 2))
-
-            print("dx", dx, dy, dz)
-            print("lx", lx, ly, lz)
-            print("sx", sx, sy)
-            print("iw ih", iw, ih)
-
-            ox = np.multiply(lx, np.divide(iw, dx))
-            oy = np.multiply(ly, np.divide(ih, dy))
-
-            # ox = iw * lx
-            # oy = ih * ly
-            ofl, ofr, oft, ofb = offset_space = obj.texture_space_control_offset[:]
-            ll = np.multiply(ofl, np.divide(iw, dx))
-            rr = np.multiply(ofr, np.divide(iw, dx))
-            tt = np.multiply(oft, np.divide(ih, dy))
-            bb = np.multiply(ofb, np.divide(ih, dy))
-            print("oxoy", ox, oy)
-            print("lrtb", ll, rr, tt, bb)
-            offset_space_pixel = Vector((ll, rr, tt, bb))
-
-            image_buf = blender_image_to_image_buf_with_numpy(image)
-            image_buf = offset_scale_image(image_buf, Vector((ox, oy)), Vector((sx, sy)),
-                                           crop=offset_space_pixel)
-
-            n = image.name.split(".")[0]
-            new_image = image_buf_to_blender_image(image_buf, f"{n}_Transformed")
-            if image.filepath != "":
-                folder = os.path.dirname(image.filepath)
-                new_image.save(filepath=os.path.join(folder, f"{new_image.name}.png"))
-            print("new_image", new_image)
-            node.image = new_image
-
-            apply_mesh_offset(obj, offset_space)
-            mesh.texspace_location = Vector((0, 0, 0))
-            obj.texture_space_control_offset = Vector((0, 0, 0, 0))
-            TextureSpaceScaleRestore.restore_scale(obj)
-            with context.temp_override(object=obj, selected_objects=[obj, ], active_object=obj):
-                bpy.ops.object.origin_set("EXEC_DEFAULT", False, type='ORIGIN_GEOMETRY', center='MEDIAN')
-            TextureSpaceScaleRestore.restore_scale(obj)
+            if apply_object_image_space_offset(obj):
+                TextureSpaceScaleRestore.restore_scale(obj)
+                with context.temp_override(object=obj, selected_objects=[obj, ], active_object=obj):
+                    bpy.ops.object.origin_set("EXEC_DEFAULT", False, type='ORIGIN_GEOMETRY', center='MEDIAN')
+                TextureSpaceScaleRestore.restore_scale(obj)
         else:
             self.report({"ERROR"}, "物体材质需要单张图像")
         return {"FINISHED"}

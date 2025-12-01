@@ -275,11 +275,11 @@ class TextureSpaceGizmo(bpy.types.Gizmo):
                 "LEFT_BOTTOM": [(lb2d, rb2d), (lb2d, lt2d), (0, 3), (1, 1)],
                 "RIGHT_BOTTOM": [(rb2d, lb2d), (rb2d, rt2d), (1, 3), (-1, 1)],
             }.get(self.direction)
-            _, ax = intersect_point_line(mouse, ax2d, bx2d)
-            _, by = intersect_point_line(mouse, cy2d, dy2d)
+            _, ax_2d = intersect_point_line(mouse, ax2d, bx2d)
+            _, by_2d = intersect_point_line(mouse, cy2d, dy2d)
 
-            xx = dx * ax
-            yy = dy * by
+            xx = dx * ax_2d
+            yy = dz * by_2d
             fxx = (sm @ Vector((xx, xx, xx)))[0]
             fyy = (sm @ Vector((yy, yy, yy)))[0]
             ofv[ix] = fxx * ffx
@@ -298,12 +298,12 @@ class TextureSpaceGizmo(bpy.types.Gizmo):
                 "TOP": [(t2d, b2d), 2],
                 "BOTTOM": [(b2d, t2d), 3]
             }.get(self.direction)
-            _, o = intersect_point_line(mouse, a2d, b2d)
+            _, o_2d = intersect_point_line(mouse, a2d, b2d)
 
             if self.is_vertical:
-                v = dy * o
+                v = dz * o_2d
             else:
-                v = dx * o
+                v = dx * o_2d
             fv = (sm @ Vector((v, v, v)))[0]
             if not self.is_negative_xis:
                 fv = fv * -1
@@ -331,7 +331,7 @@ class TextureSpaceControl(bpy.types.GizmoGroup):
         for i in range(len(DIRECTION_ITEMS)):
             gz = self.gizmos.new(TextureSpaceGizmo.bl_idname)
             gz.direction_index = i
-            gz.base_scale = 0.01
+            # gz.base_scale = 0.01
             gz.use_draw_scale = True
             gz.use_draw_modal = True
             gz.use_draw_value = True

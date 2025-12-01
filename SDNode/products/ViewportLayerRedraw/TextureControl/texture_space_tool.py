@@ -13,7 +13,7 @@ class TextureSpaceTool(bpy.types.WorkSpaceTool):
     bl_keymap = (
         ("transform.translate", {"type": 'G', "value": 'PRESS'}, {"properties": [
             ("texture_space", True),
-            ("constraint_axis", (True, True, False)),
+            ("constraint_axis", (True, False, True)),
             ("orient_matrix_type", 'LOCAL'),
             ("orient_type", 'LOCAL'),
         ]}),
